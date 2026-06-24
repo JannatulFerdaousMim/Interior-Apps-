@@ -1,0 +1,81 @@
+import 'package:pdf/pdf.dart';
+import 'package:pdf/widgets.dart' as pw;
+import 'package:printing/printing.dart';
+
+class PdfService {
+  static Future<void> generateAndPrint({
+    required String name,
+    required String email,
+    required String roomType,
+    required String designType,
+    required String budget,
+    required String notes,
+  }) async {
+    final pdf = pw.Document();
+
+    pdf.addPage(
+      pw.Page(
+        pageFormat: PdfPageFormat.a4,
+        margin: const pw.EdgeInsets.all(28),
+        build: (context) {
+          return pw.Column(
+            crossAxisAlignment: pw.CrossAxisAlignment.start,
+            children: [
+              pw.Text(
+                'Roomify Studio Design Report',
+                style: pw.TextStyle(
+                  fontSize: 24,
+                  fontWeight: pw.FontWeight.bold,
+                ),
+              ),
+              pw.SizedBox(height: 10),
+              pw.Text(
+                'Interior request summary',
+                style: const pw.TextStyle(fontSize: 14),
+              ),
+              pw.SizedBox(height: 24),
+              _item('Name', name),
+              _item('Email', email),
+              _item('Room Type', roomType),
+              _item('Design Type', designType),
+              _item('Budget', budget),
+              _item('Notes', notes),
+              pw.SizedBox(height: 24),
+              pw.Divider(),
+              pw.SizedBox(height: 12),
+              pw.Text(
+                'Thank you for using Roomify Studio. This PDF contains the room design request submitted by the user.',
+                style: const pw.TextStyle(fontSize: 12),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+
+    await Printing.layoutPdf(
+      onLayout: (format) async => pdf.save(),
+    );
+  }
+
+  static pw.Widget _item(String title, String value) {
+    return pw.Padding(
+      padding: const pw.EdgeInsets.only(bottom: 12),
+      child: pw.Row(
+        crossAxisAlignment: pw.CrossAxisAlignment.start,
+        children: [
+          pw.SizedBox(
+            width: 110,
+            child: pw.Text(
+              '$title:',
+              style: pw.TextStyle(fontWeight: pw.FontWeight.bold),
+            ),
+          ),
+          pw.Expanded(
+            child: pw.Text(value.isEmpty ? '-' : value),
+          ),
+        ],
+      ),
+    );
+  }
+}
