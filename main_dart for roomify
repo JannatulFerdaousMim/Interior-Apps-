@@ -1,0 +1,1360 @@
+import 'dart:math';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:flutter/material.dart';
+
+import 'auth_page.dart';
+import 'firebase_options.dart';
+import 'room_form_page.dart';
+
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
+  runApp(const RoomifyApp());
+}
+
+class RoomifyApp extends StatelessWidget {
+  const RoomifyApp({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      title: 'Roomify Studio',
+      debugShowCheckedModeBanner: false,
+      theme: ThemeData(
+        colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF0F9D8A)),
+        useMaterial3: true,
+        scaffoldBackgroundColor: const Color(0xFFF5F7FB),
+        inputDecorationTheme: InputDecorationTheme(
+          filled: true,
+          fillColor: Colors.white,
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 16,
+            vertical: 16,
+          ),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(18),
+            borderSide: BorderSide.none,
+          ),
+        ),
+      ),
+      home: const AuthGate(),
+    );
+  }
+}
+
+class AuthGate extends StatelessWidget {
+  const AuthGate({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return StreamBuilder<User?>(
+      stream: FirebaseAuth.instance.authStateChanges(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Scaffold(
+            body: Center(child: CircularProgressIndicator()),
+          );
+        }
+
+        if (snapshot.hasData) {
+          return const MainShell();
+        }
+
+        return const AuthPage();
+      },
+    );
+  }
+}
+
+class MainShell extends StatefulWidget {
+  const MainShell({super.key});
+
+  @override
+  State<MainShell> createState() => _MainShellState();
+}
+
+class _MainShellState extends State<MainShell> {
+  int selectedIndex = 0;
+
+  final List<Widget> pages = const [
+    HomePage(),
+    StyleLabPage(),
+    BudgetPlannerPage(),
+    CommunityPage(),
+    ProfilePage(),
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: pages[selectedIndex],
+      bottomNavigationBar: NavigationBar(
+        height: 78,
+        selectedIndex: selectedIndex,
+        destinations: const [
+          NavigationDestination(
+            icon: Icon(Icons.home_outlined),
+            selectedIcon: Icon(Icons.home),
+            label: 'Home',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.style_outlined),
+            selectedIcon: Icon(Icons.style),
+            label: 'Styles',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.account_balance_wallet_outlined),
+            selectedIcon: Icon(Icons.account_balance_wallet),
+            label: 'Budget',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.people_outline),
+            selectedIcon: Icon(Icons.people),
+            label: 'Community',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.person_outline),
+            selectedIcon: Icon(Icons.person),
+            label: 'Profile',
+          ),
+        ],
+        onDestinationSelected: (index) {
+          setState(() => selectedIndex = index);
+        },
+      ),
+    );
+  }
+}
+
+class HomePage extends StatelessWidget {
+  const HomePage({super.key});
+
+  static const List<Map<String, dynamic>> styles = [
+    {'name': 'Modern', 'icon': Icons.weekend, 'color': Color(0xFFDCFCE7)},
+    {'name': 'Minimal', 'icon': Icons.crop_square, 'color': Color(0xFFE0F2FE)},
+    {
+      'name': 'Luxury',
+      'icon': Icons.diamond_outlined,
+      'color': Color(0xFFFFEDD5)
+    },
+    {
+      'name': 'Boho',
+      'icon': Icons.local_florist_outlined,
+      'color': Color(0xFFFCE7F3)
+    },
+  ];
+
+  static const List<Map<String, String>> suggestions = [
+    {
+      'title': 'Living Room Refresh',
+      'subtitle':
+          'Warm lighting, beige furniture and soft wood texture create a premium look.'
+    },
+    {
+      'title': 'Bedroom Calm Mode',
+      'subtitle':
+          'Pastel shades and floating shelves make the room peaceful and stylish.'
+    },
+    {
+      'title': 'Small Space Hack',
+      'subtitle':
+          'Mirrors, foldable furniture and light tones make compact rooms feel bigger.'
+    },
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    final user = FirebaseAuth.instance.currentUser;
+
+    return Scaffold(
+      body: Stack(
+        children: [
+          Positioned.fill(
+            child: Image.network(
+              'https://images.unsplash.com/photo-1618221195710-dd6b41faaea6?auto=format&fit=crop&w=1400&q=80',
+              fit: BoxFit.cover,
+            ),
+          ),
+          Positioned.fill(
+            child: Container(
+              color: Colors.black.withOpacity(0.52),
+            ),
+          ),
+          SafeArea(
+            child: ListView(
+              padding: const EdgeInsets.all(16),
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Roomify Studio',
+                            style: TextStyle(
+                              fontSize: 30,
+                              fontWeight: FontWeight.w800,
+                              color: Colors.white,
+                            ),
+                          ),
+                          const SizedBox(height: 6),
+                          Text(
+                            'Hello, ${user?.email ?? 'Designer'}',
+                            style: const TextStyle(
+                              fontSize: 15,
+                              color: Colors.white70,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const CircleAvatar(
+                      radius: 28,
+                      backgroundColor: Colors.white24,
+                      child:
+                          Icon(Icons.chair_alt_outlined, color: Colors.white),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 20),
+                _buildHeroCard(context),
+                const SizedBox(height: 22),
+                const Text(
+                  'Popular Styles',
+                  style: TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                SizedBox(
+                  height: 126,
+                  child: ListView.separated(
+                    scrollDirection: Axis.horizontal,
+                    itemCount: styles.length,
+                    separatorBuilder: (_, __) => const SizedBox(width: 12),
+                    itemBuilder: (context, index) {
+                      final item = styles[index];
+                      return Container(
+                        width: 138,
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.18),
+                          borderRadius: BorderRadius.circular(24),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Icon(
+                              item['icon'] as IconData,
+                              size: 30,
+                              color: Colors.white,
+                            ),
+                            const Spacer(),
+                            Text(
+                              item['name'] as String,
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 18,
+                                color: Colors.white,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            const Text(
+                              'Ready Style',
+                              style: TextStyle(color: Colors.white70),
+                            ),
+                          ],
+                        ),
+                      );
+                    },
+                  ),
+                ),
+                const SizedBox(height: 24),
+                const Text(
+                  'Smart Suggestions',
+                  style: TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                ...suggestions.map(
+                  (item) => Container(
+                    margin: const EdgeInsets.only(bottom: 12),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.14),
+                      borderRadius: BorderRadius.circular(22),
+                      border: Border.all(color: Colors.white.withOpacity(0.12)),
+                    ),
+                    child: ListTile(
+                      contentPadding: const EdgeInsets.all(16),
+                      leading: const CircleAvatar(
+                        backgroundColor: Colors.white24,
+                        child:
+                            Icon(Icons.lightbulb_outline, color: Colors.white),
+                      ),
+                      title: Text(
+                        item['title']!,
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
+                      ),
+                      subtitle: Padding(
+                        padding: const EdgeInsets.only(top: 6),
+                        child: Text(
+                          item['subtitle']!,
+                          style: const TextStyle(color: Colors.white70),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildHeroCard(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(28),
+        color: Colors.white.withOpacity(0.16),
+        border: Border.all(color: Colors.white.withOpacity(0.16)),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: Column(
+        children: [
+          SizedBox(
+            height: 210,
+            width: double.infinity,
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                Image.network(
+                  'https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?auto=format&fit=crop&w=1200&q=80',
+                  fit: BoxFit.cover,
+                ),
+                Container(color: Colors.black.withOpacity(0.34)),
+                const Positioned(
+                  left: 18,
+                  right: 18,
+                  bottom: 18,
+                  child: Text(
+                    'Design your dream interior with a beautiful smart workflow',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 24,
+                      height: 1.2,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.all(18),
+            child: Row(
+              children: [
+                Expanded(
+                  child: FilledButton.icon(
+                    style: FilledButton.styleFrom(
+                      backgroundColor: Colors.white,
+                      foregroundColor: const Color(0xFF0F9D8A),
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                    ),
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const RoomFormPage(),
+                        ),
+                      );
+                    },
+                    icon: const Icon(Icons.description_outlined),
+                    label: const Text('Start Design Form'),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class StyleLabPage extends StatefulWidget {
+  const StyleLabPage({super.key});
+
+  @override
+  State<StyleLabPage> createState() => _StyleLabPageState();
+}
+
+class _StyleLabPageState extends State<StyleLabPage> {
+  final List<String> styles = [
+    'Modern',
+    'Minimal',
+    'Luxury',
+    'Boho',
+    'Scandinavian',
+    'Industrial',
+  ];
+
+  String selectedStyle = 'Modern';
+  bool isGenerating = false;
+  String resultTitle = 'Modern Comfort';
+  String resultDescription =
+      'Balanced tones, soft beige seating, warm layered lights and neat furniture placement.';
+
+  void generateStyle() async {
+    setState(() => isGenerating = true);
+    await Future.delayed(const Duration(seconds: 1));
+
+    const descriptions = {
+      'Modern':
+          'Balanced tones, soft beige seating, warm layered lights and neat furniture placement.',
+      'Minimal':
+          'Low-clutter room with white surfaces, hidden storage and clean shapes.',
+      'Luxury':
+          'Premium finishes, chandelier accents, velvet seating and elegant wall treatment.',
+      'Boho':
+          'Earthy colors, natural textures, greenery and woven materials create a cozy mood.',
+      'Scandinavian':
+          'Soft wood, airy layout, bright walls and comfortable fabrics create calm simplicity.',
+      'Industrial':
+          'Concrete tones, metal furniture, exposed shelving and darker mood lighting.',
+    };
+
+    setState(() {
+      resultTitle = '$selectedStyle Room Concept';
+      resultDescription = descriptions[selectedStyle]!;
+      isGenerating = false;
+    });
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    generateStyle();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: Stack(
+        children: [
+          Positioned.fill(
+            child: Image.network(
+              'https://images.unsplash.com/photo-1484154218962-a197022b5858?auto=format&fit=crop&w=1400&q=80',
+              fit: BoxFit.cover,
+            ),
+          ),
+          Positioned.fill(
+            child: Container(
+              color: Colors.black.withOpacity(0.50),
+            ),
+          ),
+          SafeArea(
+            child: ListView(
+              padding: const EdgeInsets.all(16),
+              children: [
+                const Text(
+                  'Style Studio',
+                  style: TextStyle(
+                    fontSize: 30,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                const Text(
+                  'Choose a design style and preview a room direction.',
+                  style: TextStyle(color: Colors.white70),
+                ),
+                const SizedBox(height: 18),
+                Container(
+                  height: 240,
+                  clipBehavior: Clip.antiAlias,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(28),
+                    color: Colors.white.withOpacity(0.12),
+                    border: Border.all(color: Colors.white.withOpacity(0.14)),
+                  ),
+                  child: Stack(
+                    fit: StackFit.expand,
+                    children: [
+                      Image.network(
+                        'https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?auto=format&fit=crop&w=1400&q=80',
+                        fit: BoxFit.cover,
+                      ),
+                      Container(color: Colors.black.withOpacity(0.30)),
+                      Positioned(
+                        top: 16,
+                        right: 16,
+                        child: Chip(
+                          label: Text(selectedStyle),
+                          avatar: const Icon(Icons.style, size: 18),
+                        ),
+                      ),
+                      const Positioned(
+                        left: 18,
+                        bottom: 18,
+                        right: 18,
+                        child: Text(
+                          'Find a clean visual direction for your room',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 24,
+                            fontWeight: FontWeight.w800,
+                            height: 1.2,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 18),
+                Wrap(
+                  spacing: 10,
+                  runSpacing: 10,
+                  children: styles
+                      .map(
+                        (style) => ChoiceChip(
+                          label: Text(style),
+                          selected: selectedStyle == style,
+                          selectedColor: Colors.white,
+                          backgroundColor: Colors.white.withOpacity(0.18),
+                          labelStyle: TextStyle(
+                            color: selectedStyle == style
+                                ? Colors.black87
+                                : Colors.white,
+                            fontWeight: FontWeight.w600,
+                          ),
+                          onSelected: (_) {
+                            setState(() => selectedStyle = style);
+                          },
+                        ),
+                      )
+                      .toList(),
+                ),
+                const SizedBox(height: 18),
+                FilledButton.icon(
+                  style: FilledButton.styleFrom(
+                    backgroundColor: const Color(0xFF0F9D8A),
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                  ),
+                  onPressed: isGenerating ? null : generateStyle,
+                  icon: isGenerating
+                      ? const SizedBox(
+                          height: 18,
+                          width: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.style),
+                  label: Text(
+                    isGenerating ? 'Generating...' : 'Generate Concept',
+                  ),
+                ),
+                const SizedBox(height: 18),
+                Container(
+                  padding: const EdgeInsets.all(18),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.16),
+                    borderRadius: BorderRadius.circular(24),
+                    border: Border.all(color: Colors.white.withOpacity(0.14)),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        resultTitle,
+                        style: const TextStyle(
+                          fontSize: 22,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      Text(
+                        resultDescription,
+                        style: const TextStyle(
+                          color: Colors.white70,
+                          height: 1.5,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class BudgetPlannerPage extends StatefulWidget {
+  const BudgetPlannerPage({super.key});
+
+  @override
+  State<BudgetPlannerPage> createState() => _BudgetPlannerPageState();
+}
+
+class _BudgetPlannerPageState extends State<BudgetPlannerPage> {
+  final TextEditingController budgetController =
+      TextEditingController(text: '50000');
+
+  double furniture = 0;
+  double decor = 0;
+  double lighting = 0;
+  double paint = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _calculate();
+  }
+
+  void _calculate() {
+    final total = double.tryParse(budgetController.text) ?? 0;
+    setState(() {
+      furniture = total * 0.50;
+      decor = total * 0.15;
+      lighting = total * 0.15;
+      paint = total * 0.20;
+    });
+  }
+
+  @override
+  void dispose() {
+    budgetController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final total = double.tryParse(budgetController.text) ?? 0;
+
+    return Scaffold(
+      body: Stack(
+        children: [
+          Positioned.fill(
+            child: Image.network(
+              'https://images.unsplash.com/photo-1513694203232-719a280e022f?auto=format&fit=crop&w=1400&q=80',
+              fit: BoxFit.cover,
+            ),
+          ),
+          Positioned.fill(
+            child: Container(
+              color: Colors.black.withOpacity(0.55),
+            ),
+          ),
+          SafeArea(
+            child: ListView(
+              padding: const EdgeInsets.all(16),
+              children: [
+                const Text(
+                  'Budget Planner',
+                  style: TextStyle(
+                    fontSize: 30,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                const Text(
+                  'Plan your room budget beautifully and smartly.',
+                  style: TextStyle(color: Colors.white70),
+                ),
+                const SizedBox(height: 20),
+
+                // Budget input card
+                Container(
+                  padding: const EdgeInsets.all(18),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.14),
+                    borderRadius: BorderRadius.circular(26),
+                    border: Border.all(color: Colors.white.withOpacity(0.12)),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Enter your total budget',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 18,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      const SizedBox(height: 14),
+                      TextField(
+                        controller: budgetController,
+                        keyboardType: TextInputType.number,
+                        style: const TextStyle(color: Colors.black87),
+                        decoration: InputDecoration(
+                          labelText: 'Budget in BDT',
+                          prefixIcon: const Icon(Icons.currency_exchange),
+                          filled: true,
+                          fillColor: Colors.white.withOpacity(0.92),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(18),
+                            borderSide: BorderSide.none,
+                          ),
+                        ),
+                        onChanged: (_) => _calculate(),
+                      ),
+                    ],
+                  ),
+                ),
+
+                const SizedBox(height: 18),
+
+                // total budget card
+                Container(
+                  padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      colors: [
+                        Color(0xFF0F9D8A),
+                        Color(0xFF1D6FA3),
+                      ],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    borderRadius: BorderRadius.circular(28),
+                    boxShadow: const [
+                      BoxShadow(
+                        blurRadius: 18,
+                        offset: Offset(0, 8),
+                        color: Color(0x22000000),
+                      ),
+                    ],
+                  ),
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 58,
+                        height: 58,
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.20),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(
+                          Icons.account_balance_wallet_outlined,
+                          color: Colors.white,
+                          size: 28,
+                        ),
+                      ),
+                      const SizedBox(width: 14),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              'Estimated Total',
+                              style: TextStyle(
+                                color: Colors.white70,
+                                fontSize: 14,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              '৳${total.toStringAsFixed(0)}',
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 30,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
+                const SizedBox(height: 20),
+
+                _budgetCard(
+                  title: 'Furniture',
+                  amount: furniture,
+                  icon: Icons.weekend_outlined,
+                  color1: const Color(0xFF7C3AED),
+                  color2: const Color(0xFFA78BFA),
+                ),
+                _budgetCard(
+                  title: 'Decor',
+                  amount: decor,
+                  icon: Icons.style_outlined,
+                  color1: const Color(0xFFDB2777),
+                  color2: const Color(0xFFF472B6),
+                ),
+                _budgetCard(
+                  title: 'Lighting',
+                  amount: lighting,
+                  icon: Icons.lightbulb_outline,
+                  color1: const Color(0xFFD97706),
+                  color2: const Color(0xFFFBBF24),
+                ),
+                _budgetCard(
+                  title: 'Paint & Finish',
+                  amount: paint,
+                  icon: Icons.format_paint_outlined,
+                  color1: const Color(0xFF0891B2),
+                  color2: const Color(0xFF67E8F9),
+                ),
+
+                const SizedBox(height: 20),
+
+                Container(
+                  padding: const EdgeInsets.all(18),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.14),
+                    borderRadius: BorderRadius.circular(24),
+                    border: Border.all(color: Colors.white.withOpacity(0.10)),
+                  ),
+                  child: const Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Budget Tips',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      SizedBox(height: 10),
+                      Text(
+                        '• Spend more on furniture first.\n'
+                        '• Use decorative lights for a premium feel.\n'
+                        '• Accent walls can save painting cost.\n'
+                        '• Mirrors and light shades make rooms feel bigger.',
+                        style: TextStyle(
+                          color: Colors.white70,
+                          height: 1.6,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _budgetCard({
+    required String title,
+    required double amount,
+    required IconData icon,
+    required Color color1,
+    required Color color2,
+  }) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 14),
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [color1, color2],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: const [
+          BoxShadow(
+            blurRadius: 12,
+            offset: Offset(0, 6),
+            color: Color(0x22000000),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 52,
+            height: 52,
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.20),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(icon, color: Colors.white),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Text(
+              title,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+          Text(
+            '৳${amount.toStringAsFixed(0)}',
+            style: const TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.w800,
+              fontSize: 18,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class CommunityPage extends StatelessWidget {
+  const CommunityPage({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final posts = [
+      {
+        'name': 'Nadia',
+        'style': 'Modern Bedroom',
+        'image': 'https://images.unsplash.com/photo-1505693416388-ac5ce068fe85',
+        'caption':
+            'Warm lighting and soft textures create a calm premium bedroom.',
+        'likes': 128,
+      },
+      {
+        'name': 'Farhan',
+        'style': 'Boho Living Room',
+        'image': 'https://images.unsplash.com/photo-1618221195710-dd6b41faaea6',
+        'caption': 'Plants and earthy colors gave the room a cozy personality.',
+        'likes': 203,
+      },
+      {
+        'name': 'Tasnia',
+        'style': 'Minimal Studio',
+        'image': 'https://images.unsplash.com/photo-1493666438817-866a91353ca9',
+        'caption':
+            'Clean layout and light tones make small spaces feel bigger.',
+        'likes': 95,
+      },
+    ];
+
+    return Scaffold(
+      body: Stack(
+        children: [
+          Positioned.fill(
+            child: Image.network(
+              'https://images.unsplash.com/photo-1600585154340-be6161a56a0c',
+              fit: BoxFit.cover,
+            ),
+          ),
+          Positioned.fill(
+            child: Container(
+              color: Colors.black.withOpacity(0.55),
+            ),
+          ),
+          SafeArea(
+            child: ListView(
+              padding: const EdgeInsets.all(16),
+              children: [
+                const Text(
+                  'Community',
+                  style: TextStyle(
+                    fontSize: 28,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                const Text(
+                  'Explore designs shared by others',
+                  style: TextStyle(color: Colors.white70),
+                ),
+                const SizedBox(height: 16),
+
+                // 🔥 POSTS
+                ...posts.map((post) => _PostCard(post: post)).toList(),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _PostCard extends StatelessWidget {
+  final Map<String, dynamic> post;
+
+  const _PostCard({required this.post});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 18),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.12),
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: Colors.white.withOpacity(0.1)),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // 🔥 IMAGE
+          Stack(
+            children: [
+              Image.network(
+                post['image'],
+                height: 200,
+                width: double.infinity,
+                fit: BoxFit.cover,
+              ),
+              Positioned(
+                bottom: 10,
+                left: 10,
+                child: Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: Colors.black.withOpacity(0.6),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Text(
+                    post['style'],
+                    style: const TextStyle(color: Colors.white),
+                  ),
+                ),
+              ),
+            ],
+          ),
+
+          // 🔥 USER INFO
+          Padding(
+            padding: const EdgeInsets.all(14),
+            child: Row(
+              children: [
+                CircleAvatar(
+                  backgroundColor: Colors.white24,
+                  child: Text(post['name'][0]),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    post['name'],
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          // 🔥 CAPTION
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 14),
+            child: Text(
+              post['caption'],
+              style: const TextStyle(color: Colors.white70),
+            ),
+          ),
+
+          // 🔥 ACTIONS
+          Padding(
+            padding: const EdgeInsets.all(10),
+            child: Row(
+              children: [
+                const Icon(Icons.favorite_border, color: Colors.white),
+                const SizedBox(width: 6),
+                Text(
+                  '${post['likes']}',
+                  style: const TextStyle(color: Colors.white),
+                ),
+                const Spacer(),
+                const Icon(Icons.bookmark_border, color: Colors.white),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class CommunityPost {
+  final String userName;
+  final String style;
+  final String caption;
+  final int likes;
+
+  CommunityPost({
+    required this.userName,
+    required this.style,
+    required this.caption,
+    required this.likes,
+  });
+}
+
+class _CommunityCard extends StatelessWidget {
+  final CommunityPost post;
+
+  const _CommunityCard({required this.post});
+
+  @override
+  Widget build(BuildContext context) {
+    final random = Random(post.userName.hashCode);
+    final bg =
+        Colors.primaries[random.nextInt(Colors.primaries.length)].shade100;
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(24),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            height: 190,
+            color: bg,
+            alignment: Alignment.center,
+            child: Icon(
+              Icons.image_outlined,
+              size: 70,
+              color: Colors.grey.shade700,
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 14, 16, 10),
+            child: Row(
+              children: [
+                CircleAvatar(child: Text(post.userName[0])),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        post.userName,
+                        style: const TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                      Text(
+                        post.style,
+                        style: const TextStyle(color: Colors.black54),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Text(post.caption),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(10, 6, 10, 10),
+            child: Row(
+              children: [
+                IconButton(
+                  onPressed: () {},
+                  icon: const Icon(Icons.favorite_border),
+                ),
+                Text('${post.likes}'),
+                const Spacer(),
+                IconButton(
+                  onPressed: () {},
+                  icon: const Icon(Icons.bookmark_border),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class ProfilePage extends StatelessWidget {
+  const ProfilePage({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final user = FirebaseAuth.instance.currentUser;
+
+    return Scaffold(
+      body: Stack(
+        children: [
+          Positioned.fill(
+            child: Image.network(
+              'https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?auto=format&fit=crop&w=1400&q=80',
+              fit: BoxFit.cover,
+            ),
+          ),
+          Positioned.fill(
+            child: Container(
+              color: Colors.black.withOpacity(0.58),
+            ),
+          ),
+          SafeArea(
+            child: ListView(
+              padding: const EdgeInsets.all(16),
+              children: [
+                const SizedBox(height: 8),
+                const CircleAvatar(
+                  radius: 50,
+                  backgroundColor: Colors.white24,
+                  child: Icon(Icons.person, size: 48, color: Colors.white),
+                ),
+                const SizedBox(height: 14),
+                Center(
+                  child: Text(
+                    user?.email ?? 'User Profile',
+                    style: const TextStyle(
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                const Center(
+                  child: Text(
+                    'Manage your account, forms and design records.',
+                    style: TextStyle(color: Colors.white70),
+                    textAlign: TextAlign.center,
+                  ),
+                ),
+                const SizedBox(height: 22),
+                Row(
+                  children: const [
+                    Expanded(
+                        child: _ProfileStatCard(label: 'Saved', value: '12')),
+                    SizedBox(width: 12),
+                    Expanded(
+                        child: _ProfileStatCard(label: 'Forms', value: '8')),
+                    SizedBox(width: 12),
+                    Expanded(
+                        child: _ProfileStatCard(label: 'Ideas', value: '5')),
+                  ],
+                ),
+                const SizedBox(height: 18),
+                Container(
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.14),
+                    borderRadius: BorderRadius.circular(22),
+                    border: Border.all(color: Colors.white.withOpacity(0.12)),
+                  ),
+                  child: Column(
+                    children: [
+                      ListTile(
+                        leading: const Icon(
+                          Icons.description_outlined,
+                          color: Colors.white,
+                        ),
+                        title: const Text(
+                          'Open Room Design Form',
+                          style: TextStyle(color: Colors.white),
+                        ),
+                        trailing: const Icon(
+                          Icons.arrow_forward_ios_rounded,
+                          size: 16,
+                          color: Colors.white,
+                        ),
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const RoomFormPage(),
+                            ),
+                          );
+                        },
+                      ),
+                      Divider(
+                        height: 1,
+                        color: Colors.white.withOpacity(0.10),
+                      ),
+                      ListTile(
+                        leading: const Icon(Icons.logout, color: Colors.white),
+                        title: const Text(
+                          'Logout',
+                          style: TextStyle(color: Colors.white),
+                        ),
+                        trailing: const Icon(
+                          Icons.arrow_forward_ios_rounded,
+                          size: 16,
+                          color: Colors.white,
+                        ),
+                        onTap: () async {
+                          await FirebaseAuth.instance.signOut();
+                        },
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ProfileStatCard extends StatelessWidget {
+  final String label;
+  final String value;
+
+  const _ProfileStatCard({
+    required this.label,
+    required this.value,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 18),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.14),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: Colors.white.withOpacity(0.12)),
+      ),
+      child: Column(
+        children: [
+          Text(
+            value,
+            style: const TextStyle(
+              fontSize: 24,
+              fontWeight: FontWeight.bold,
+              color: Colors.white,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            label,
+            style: const TextStyle(color: Colors.white70),
+          ),
+        ],
+      ),
+    );
+  }
+}
