@@ -1,0 +1,374 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/material.dart';
+
+import 'pdf_service.dart';
+
+class RoomFormPage extends StatefulWidget {
+  const RoomFormPage({super.key});
+
+  @override
+  State<RoomFormPage> createState() => _RoomFormPageState();
+}
+
+class _RoomFormPageState extends State<RoomFormPage> {
+  final GlobalKey<FormState> formKey = GlobalKey<FormState>();
+
+  final TextEditingController nameController = TextEditingController();
+  final TextEditingController emailController = TextEditingController();
+  final TextEditingController budgetController = TextEditingController();
+  final TextEditingController notesController = TextEditingController();
+
+  String selectedRoomType = 'Living Room';
+  String selectedDesignType = 'Modern';
+  bool isSaving = false;
+
+  final List<String> roomTypes = const [
+    'Living Room',
+    'Bedroom',
+    'Kitchen',
+    'Dining Room',
+    'Office',
+    'Bathroom',
+  ];
+
+  final List<String> designTypes = const [
+    'Modern',
+    'Minimal',
+    'Luxury',
+    'Boho',
+    'Scandinavian',
+    'Industrial',
+  ];
+
+  @override
+  void initState() {
+    super.initState();
+    final user = FirebaseAuth.instance.currentUser;
+    emailController.text = user?.email ?? '';
+  }
+
+  @override
+  void dispose() {
+    nameController.dispose();
+    emailController.dispose();
+    budgetController.dispose();
+    notesController.dispose();
+    super.dispose();
+  }
+
+  Future<void> saveForm() async {
+    if (!formKey.currentState!.validate()) return;
+
+    final user = FirebaseAuth.instance.currentUser;
+
+    if (user == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please sign in first')),
+      );
+      return;
+    }
+
+    setState(() => isSaving = true);
+
+    try {
+      final docRef = await FirebaseFirestore.instance
+          .collection('roomify_room_requests')
+          .add({
+        'uid': user.uid,
+        'name': nameController.text.trim(),
+        'email': emailController.text.trim(),
+        'roomType': selectedRoomType,
+        'designType': selectedDesignType,
+        'budget': budgetController.text.trim(),
+        'notes': notesController.text.trim(),
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Data saved successfully: ${docRef.id}')),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to save data: $e')),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => isSaving = false);
+      }
+    }
+  }
+
+  Future<void> saveAndDownloadPdf() async {
+    await saveForm();
+
+    if (!mounted) return;
+
+    await PdfService.generateAndPrint(
+      name: nameController.text.trim(),
+      email: emailController.text.trim(),
+      roomType: selectedRoomType,
+      designType: selectedDesignType,
+      budget: budgetController.text.trim(),
+      notes: notesController.text.trim(),
+    );
+  }
+
+  InputDecoration inputDecoration(String label, IconData icon) {
+    return InputDecoration(
+      labelText: label,
+      prefixIcon: Icon(icon),
+      filled: true,
+      fillColor: Colors.white.withOpacity(0.92),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(18),
+        borderSide: BorderSide.none,
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(18),
+        borderSide: BorderSide.none,
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(18),
+        borderSide: const BorderSide(color: Color(0xFF0F9D8A), width: 1.4),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Room Design Form'),
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+      ),
+      extendBodyBehindAppBar: true,
+      body: Stack(
+        children: [
+          Positioned.fill(
+            child: Image.network(
+              'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=1400&q=80',
+              fit: BoxFit.cover,
+            ),
+          ),
+          Positioned.fill(
+            child: Container(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [
+                    Colors.black.withOpacity(0.55),
+                    Colors.black.withOpacity(0.28),
+                    Colors.black.withOpacity(0.55),
+                  ],
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                ),
+              ),
+            ),
+          ),
+          SafeArea(
+            child: ListView(
+              padding: const EdgeInsets.all(16),
+              children: [
+                const SizedBox(height: 8),
+                Container(
+                  padding: const EdgeInsets.all(18),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.16),
+                    borderRadius: BorderRadius.circular(24),
+                    border: Border.all(color: Colors.white.withOpacity(0.18)),
+                  ),
+                  child: const Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Create Your Dream Interior',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 28,
+                          fontWeight: FontWeight.w800,
+                          height: 1.15,
+                        ),
+                      ),
+                      SizedBox(height: 8),
+                      Text(
+                        'Fill out your room type, design choice, budget and notes. Then save it to Firebase or download a PDF.',
+                        style: TextStyle(
+                          color: Colors.white70,
+                          fontSize: 14,
+                          height: 1.5,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 18),
+                Container(
+                  padding: const EdgeInsets.all(18),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.14),
+                    borderRadius: BorderRadius.circular(28),
+                    border: Border.all(color: Colors.white.withOpacity(0.16)),
+                    boxShadow: const [
+                      BoxShadow(
+                        blurRadius: 18,
+                        offset: Offset(0, 8),
+                        color: Color(0x22000000),
+                      ),
+                    ],
+                  ),
+                  child: Form(
+                    key: formKey,
+                    child: Column(
+                      children: [
+                        TextFormField(
+                          controller: nameController,
+                          style: const TextStyle(color: Colors.black87),
+                          decoration: inputDecoration(
+                            'Your Name',
+                            Icons.person_outline,
+                          ),
+                          validator: (value) {
+                            if (value == null || value.trim().isEmpty) {
+                              return 'Please enter your name';
+                            }
+                            return null;
+                          },
+                        ),
+                        const SizedBox(height: 14),
+                        TextFormField(
+                          controller: emailController,
+                          style: const TextStyle(color: Colors.black87),
+                          decoration: inputDecoration(
+                            'Email',
+                            Icons.email_outlined,
+                          ),
+                          validator: (value) {
+                            if (value == null || value.trim().isEmpty) {
+                              return 'Please enter your email';
+                            }
+                            return null;
+                          },
+                        ),
+                        const SizedBox(height: 14),
+                        DropdownButtonFormField<String>(
+                          value: selectedRoomType,
+                          decoration: inputDecoration(
+                            'Room Type',
+                            Icons.meeting_room_outlined,
+                          ),
+                          dropdownColor: Colors.white,
+                          items: roomTypes
+                              .map(
+                                (room) => DropdownMenuItem(
+                                  value: room,
+                                  child: Text(room),
+                                ),
+                              )
+                              .toList(),
+                          onChanged: (value) {
+                            if (value != null) {
+                              setState(() => selectedRoomType = value);
+                            }
+                          },
+                        ),
+                        const SizedBox(height: 14),
+                        DropdownButtonFormField<String>(
+                          value: selectedDesignType,
+                          decoration: inputDecoration(
+                            'Design Type',
+                            Icons.style_outlined,
+                          ),
+                          dropdownColor: Colors.white,
+                          items: designTypes
+                              .map(
+                                (design) => DropdownMenuItem(
+                                  value: design,
+                                  child: Text(design),
+                                ),
+                              )
+                              .toList(),
+                          onChanged: (value) {
+                            if (value != null) {
+                              setState(() => selectedDesignType = value);
+                            }
+                          },
+                        ),
+                        const SizedBox(height: 14),
+                        TextFormField(
+                          controller: budgetController,
+                          keyboardType: TextInputType.number,
+                          style: const TextStyle(color: Colors.black87),
+                          decoration: inputDecoration(
+                            'Budget (BDT)',
+                            Icons.currency_exchange,
+                          ),
+                          validator: (value) {
+                            if (value == null || value.trim().isEmpty) {
+                              return 'Please enter your budget';
+                            }
+                            return null;
+                          },
+                        ),
+                        const SizedBox(height: 14),
+                        TextFormField(
+                          controller: notesController,
+                          maxLines: 4,
+                          style: const TextStyle(color: Colors.black87),
+                          decoration: inputDecoration(
+                            'Extra Notes',
+                            Icons.notes_outlined,
+                          ),
+                        ),
+                        const SizedBox(height: 22),
+                        SizedBox(
+                          width: double.infinity,
+                          child: FilledButton.icon(
+                            style: FilledButton.styleFrom(
+                              backgroundColor: const Color(0xFF0F9D8A),
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(vertical: 16),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(18),
+                              ),
+                            ),
+                            onPressed: isSaving ? null : saveForm,
+                            icon: const Icon(Icons.cloud_upload_outlined),
+                            label: Text(
+                              isSaving ? 'Saving...' : 'Save to Firebase',
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        SizedBox(
+                          width: double.infinity,
+                          child: OutlinedButton.icon(
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: Colors.white,
+                              side: const BorderSide(color: Colors.white70),
+                              padding: const EdgeInsets.symmetric(vertical: 16),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(18),
+                              ),
+                            ),
+                            onPressed: isSaving ? null : saveAndDownloadPdf,
+                            icon: const Icon(Icons.picture_as_pdf_outlined),
+                            label: const Text('Save + Download PDF'),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 20),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
